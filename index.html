@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Interactive Particle Cloud - E55 Double Tap</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    body { 
+        margin: 0; 
+        background-color: #111; 
+        color: #eee; 
+        font-family: Arial, sans-serif; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        padding-bottom: 20px;
+        min-height: 100vh; 
+        box-sizing: border-box;
+    }
+    #particleCanvas { 
+        border: 1px solid #333; 
+        cursor: grab; 
+        max-width: 100%; 
+        touch-action: none; /* Crucial for better touch interaction */
+    }
+    .controls { 
+        padding: 10px; 
+        background-color: #222; 
+        border-radius: 8px; 
+        margin-top: 15px; 
+        display: flex; 
+        flex-wrap: wrap; 
+        gap: 8px; 
+        justify-content: center; 
+        width: 95%; 
+        max-width: 600px; 
+        box-sizing: border-box;
+    }
+    .control-group { 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        margin-bottom: 5px; 
+        flex: 1 1 120px; 
+        min-width: 120px; 
+    }
+    label { 
+        margin-bottom: 4px; 
+        font-size: 0.85em; 
+        text-align: center;
+    }
+    input[type="color"], input[type="range"], select {
+        padding: 7px;
+        border-radius: 4px;
+        border: 1px solid #444;
+        background-color: #333;
+        color: #eee;
+        cursor: pointer;
+        margin-top: 3px;
+        box-sizing: border-box; 
+        width: 100%; 
+        max-width: 130px; 
+    }
+    input[type="range"] { 
+        padding-left: 3px; 
+        padding-right: 3px;
+        width: calc(100% - 6px); 
+    }
+    button {
+        padding: 9px 18px; 
+        border-radius: 18px; 
+        border: none; 
+        color: #fff; 
+        font-weight: bold; 
+        font-size: 0.9em; 
+        cursor: pointer; 
+        margin: 5px;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+        box-shadow: 0 2px 3px rgba(0,0,0,0.25);
+    }
+    button:hover { 
+        transform: translateY(-1px); 
+        box-shadow: 0 3px 5px rgba(0,0,0,0.3);
+    }
+    button:active { 
+        transform: translateY(0px); 
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    #resetButton { background-color: #007bff; }
+    #resetButton:hover { background-color: #0056b3; }
+    #formTextButton { background-color: #28a745; }
+    #formTextButton:hover { background-color: #1e7e34; }
+    h1 { 
+        margin-top: 15px; 
+        margin-bottom: 15px;
+        color: #00aaff; 
+        font-size: 1.5em; 
+        text-align: center; 
+        padding: 0 10px;
+    }
+    #errorMessage { 
+        color: red; 
+        margin-top: 10px; 
+        font-weight: bold; 
+        text-align: center; 
+        font-size: 0.9em;
+    }
+</style>
+</head><body>
+
+<h1>✨ Particle Cloud - E55 & Text ✨</h1>
+<canvas id="particleCanvas"></canvas>
+<div id="errorMessage"></div>
+
+<div class="controls">
+    <div class="control-group">
+        <label for="particleColor">Cloud Color:</label>
+        <input type="color" id="particleColor" value="#00ffff">
+    </div>
+    <div class="control-group">
+        <label for="backgroundColor">Background:</label>
+        <input type="color" id="backgroundColor" value="#111111">
+    </div>
+    <div class="control-group">
+        <label for="particleShape">Shape (Cloud):</label>
+        <select id="particleShape">
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+            <option value="hexagon">Hexagon ⬡</option>
+            <option value="infinity">Infinity ∞</option>
+            <option value="mixed">Mixed</option>
+        </select>
+    </div>
+    <div class="control-group">
+        <label for="particleCount">Particles (x10):</label>
+        <input type="range" id="particleCount" min="5" max="60" value="30">
+    </div>
+    <div class="control-group">
+        <label for="particleSize">Max Size (Cloud):</label>
+        <input type="range" id="particleSize" min="1" max="8" value="2.5">
+    </div>
+    <div class="control-group">
+        <label for="particleSpeed">Speed (Cloud):</label>
+        <input type="range" id="particleSpeed" min="0.1" max="3" step="0.1" value="0.8">
+    </div>
+    <div class="control-group">
+        <label for="connectionLines">Lines:</label>
+        <select id="connectionLines">
+            <option value="on">On</option>
+            <option value="off">Off</option>
+        </select>
+    </div>
+     <div class="control-group">
+        <label for="lineColor">Line Color (Cloud):</label>
+        <input type="color" id="lineColor" value="#FFFFFF">
+    </div>
+    <div class="control-group">
+        <label for="maxDistance">Line Distance:</label>
+        <input type="range" id="maxDistance" min="10" max="150" value="35">
+    </div>
+    <button id="resetButton">Reset Cloud</button>
+    <button id="formTextButton">Form YAMAGOMORI</button>
+    </div>
+
+<script>
+    console.log("Script execution started. E55 Double Tap Version.");
+
+    const canvas = document.getElementById('particleCanvas');
+    const errorMessageDiv = document.getElementById('errorMessage');
+    let ctx;
+
+    if (!canvas) { const msg = "CRITICAL ERROR: Canvas not found."; if (errorMessageDiv) errorMessageDiv.textContent = msg; console.error(msg); throw new Error(msg); }
+    try { ctx = canvas.getContext('2d'); if (!ctx) throw new Error("No Ctx");} 
+    catch (e) { const msg = "CRITICAL ERROR Ctx: " + e.message; if (errorMessageDiv) errorMessageDiv.textContent = msg; console.error(msg, e); throw e; }
+
+    let particlesArray = [];
+    let animationFrameId;
+    let animationMode = 'cloud'; // 'cloud', 'formingText', 'textDisplayed', 'formingE55', 'E55Displayed'
+    let currentTargetPoints = [];
+    let frameCount = 0;
+
+    const defaultSettings = {
+        particleColor: '#00ffff', backgroundColor: '#111111', particleShape: 'circle',
+        particleCount: 30, 
+        particleSize: 2.5, particleSpeed: 0.8,
+        connectionLines: 'on', lineColor: '#FFFFFF', maxDistance: 35,
+        defaultGlowBlur: 5, hoverGlowBlur: 15, glowInteractionRadius: 25, glowOpacityFactor: 0.5,
+        formationEasing: 0.025, 
+        // Text/E55 style (glow is shared, body color is dynamic)
+        shapeGlowColor: '#00E0FF', // Unified glow for text and E55
+        shapeGlowBlur: 20, 
+        shapeGlowOpacity: 0.6, 
+        textPointSamplingStep: 2,     
+        textFontFamily: "'Arial Black', 'Impact', Gadget, sans-serif", 
+        textToShow: "Y A M A G O M O R I",
+        E55TextToShow: "E55", // Text used to generate E55 shape
+        availableShapes: ['circle', 'square', 'hexagon', 'infinity']
+    };
+    let currentSettings = { ...defaultSettings };
+
+    const particleColorInput = document.getElementById('particleColor');
+    const backgroundColorInput = document.getElementById('backgroundColor');
+    const particleShapeInput = document.getElementById('particleShape');
+    const particleCountInput = document.getElementById('particleCount');
+    const particleSizeInput = document.getElementById('particleSize');
+    const particleSpeedInput = document.getElementById('particleSpeed');
+    const connectionLinesInput = document.getElementById('connectionLines');
+    const lineColorInput = document.getElementById('lineColor');
+    const maxDistanceInput = document.getElementById('maxDistance');
+    const resetButton = document.getElementById('resetButton');
+    const formTextButton = document.getElementById('formTextButton');
+
+    const allControlsFound = particleColorInput && backgroundColorInput && particleShapeInput &&
+                             particleCountInput && particleSizeInput && particleSpeedInput &&
+                             connectionLinesInput && lineColorInput && maxDistanceInput && resetButton && formTextButton;
+
+    if (!allControlsFound) { console.warn("Warning: One or more control UI elements missing."); }
+    else { console.log("All UI control elements found."); }
+
+    class Particle {
+        constructor() {
+            this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height;
+            this.size = Math.random() * currentSettings.particleSize + 1.5; 
+            this.baseSpeed = currentSettings.particleSpeed;
+            this.speedX = (Math.random()*2-1)*this.baseSpeed; this.speedY = (Math.random()*2-1)*this.baseSpeed;
+            if (this.speedX === 0 && this.baseSpeed !== 0) this.speedX = (Math.random() < 0.5 ? -0.01:0.01)*this.baseSpeed + 0.001;
+            if (this.speedY === 0 && this.baseSpeed !== 0) this.speedY = (Math.random() < 0.5 ? -0.01:0.01)*this.baseSpeed + 0.001;
+            this.defaultColor = currentSettings.particleColor; this.color = this.defaultColor; this.targetColor = null; 
+            if (currentSettings.particleShape === 'mixed') { this.shape = currentSettings.availableShapes[Math.floor(Math.random() * currentSettings.availableShapes.length)]; }
+            else { this.shape = currentSettings.particleShape; }
+            this.targetX = null; this.targetY = null; this.isAtTarget = false;
+        }
+        assignTargetColor(c){ this.targetColor=c; this.color = c || this.defaultColor; }
+        revertToDefaultColor(){ this.targetColor=null; this.color = this.defaultColor; }
+        update(){
+            if (animationMode.includes('forming') || animationMode.includes('Displayed')) {
+                if (this.targetX !== null && this.targetY !== null && !this.isAtTarget) { 
+                    const dx = this.targetX - this.x, dy = this.targetY - this.y, d = Math.sqrt(dx*dx+dy*dy);
+                    if(d > 0.5){ this.x += dx * currentSettings.formationEasing; this.y += dy * currentSettings.formationEasing; }
+                    else{ this.isAtTarget = true; this.x = this.targetX; this.y = this.targetY; }
+                }
+                this.x = Math.max(this.size, Math.min(this.x, canvas.width - this.size));
+                this.y = Math.max(this.size, Math.min(this.y, canvas.height - this.size));
+            } else { 
+                this.isAtTarget=false; this.revertToDefaultColor();
+                this.x += this.speedX; this.y += this.speedY;
+                if (this.x + this.size > canvas.width || this.x - this.size < 0) { this.speedX *= -1; this.x = Math.max(this.size, Math.min(this.x, canvas.width - this.size)); }
+                if (this.y + this.size > canvas.height || this.y - this.size < 0) { this.speedY *= -1; this.y = Math.max(this.size, Math.min(this.y, canvas.height - this.size)); }
+            }
+        }
+        draw(){ 
+            if(!ctx)return; ctx.fillStyle=this.color; ctx.beginPath(); 
+            let shapeToDraw = (animationMode !== 'cloud' && animationMode !== '') ? 'circle' : this.shape;
+            if(shapeToDraw === 'circle'){ ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+            } else if(shapeToDraw === 'square'){ ctx.rect(this.x-this.size/2,this.y-this.size/2,this.size,this.size);
+            } else if (shapeToDraw === 'hexagon') {
+                const angle = Math.PI / 3; ctx.moveTo(this.x + this.size * Math.cos(0), this.y + this.size * Math.sin(0));
+                for (let i = 1; i <= 6; i++) { ctx.lineTo(this.x + this.size * Math.cos(angle*i), this.y + this.size * Math.sin(angle*i)); }
+            } else if (shapeToDraw === 'infinity') {
+                const s = this.size*0.8; const k = s*0.55; ctx.moveTo(this.x,this.y);
+                ctx.bezierCurveTo(this.x+s,this.y-k, this.x+s,this.y+k, this.x,this.y);
+                ctx.bezierCurveTo(this.x-s,this.y-k, this.x-s,this.y+k, this.x,this.y);
+            }
+            ctx.fill(); 
+        }
+    }
+
+    function resizeCanvas() {
+        let newWidth = window.innerWidth * 0.95; let newHeight = window.innerHeight * 0.55; 
+        if (window.innerHeight < 500) newHeight = window.innerHeight * 0.5;
+        newWidth = Math.max(280, newWidth); newHeight = Math.max(150, newHeight);
+        if (canvas.width !== newWidth || canvas.height !== newHeight) {
+            canvas.width = newWidth; canvas.height = newHeight;
+            if (animationMode === 'formingText' || animationMode === 'textDisplayed') {
+                assignTargetPoints(processTextToPoints(currentSettings.textToShow, particleColorInput.value), 'formingText');
+            } else if (animationMode === 'formingE55' || animationMode === 'E55Displayed') {
+                assignTargetPoints(processTextToPoints(currentSettings.E55TextToShow, particleColorInput.value), 'formingE55');
+            } else { init(true); }
+        } else if (particlesArray.length === 0 && currentSettings.particleCount > 0 && animationMode === 'cloud') {
+            init(true);
+        }
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function init(forceCloudMode = true) {
+        if (forceCloudMode) { animationMode = 'cloud'; currentSettings.particleShape = particleShapeInput.value; }
+        particlesArray = []; const numP = Math.max(10, currentSettings.particleCount*10);
+        for (let i = 0; i < numP; i++) { particlesArray.push(new Particle()); }
+        particlesArray.forEach(p => { p.targetX = null; p.targetY = null; p.isAtTarget = false; p.revertToDefaultColor(); });
+    }
+
+    function processTextToPoints(textToDraw, dynamicTextColorOverride = null) {
+        const tempCvs = document.createElement('canvas'); const tempCtx = tempCvs.getContext('2d');
+        let fS_factor = textToDraw === currentSettings.E55TextToShow ? 0.8 : 0.65; // E55 can be relatively larger
+        let fS = Math.floor(canvas.width / (textToDraw.length * fS_factor)); 
+        fS = Math.min(fS, Math.floor(canvas.height * (textToDraw === currentSettings.E55TextToShow ? 0.6 : 0.45) )); 
+        fS = Math.max(fS,10); 
+        tempCtx.font = `bold ${fS}px ${currentSettings.textFontFamily}`; let tW = tempCtx.measureText(textToDraw).width;
+        while (tW > canvas.width*0.9 && fS > 10) { fS-=1; tempCtx.font = `bold ${fS}px ${currentSettings.textFontFamily}`; tW = tempCtx.measureText(textToDraw).width; }
+        tempCvs.width = Math.ceil(tW)||canvas.width; tempCvs.height = Math.ceil(fS*1.5)||50;
+        tempCtx.font = `bold ${fS}px ${currentSettings.textFontFamily}`; tempCtx.fillStyle = '#fff'; tempCtx.textAlign = 'left'; tempCtx.textBaseline = 'middle';
+        tempCtx.fillText(textToDraw, 0, tempCvs.height/2); const pts = [];
+        
+        const dynamicTextColor = dynamicTextColorOverride || particleColorInput.value; 
+
+        if (tempCvs.width > 0 && tempCvs.height > 0) {
+            try { const d = tempCtx.getImageData(0,0,tempCvs.width,tempCvs.height).data;
+                for (let y=0; y<tempCvs.height; y+=currentSettings.textPointSamplingStep) {
+                    for (let x=0; x<tempCvs.width; x+=currentSettings.textPointSamplingStep) {
+                        if (d[(y*tempCvs.width+x)*4+3]>128) { pts.push({ x:x, y:y, color: dynamicTextColor }); }}}}
+            catch(e) { console.error("Err ImageData text:", e); if(errorMessageDiv) errorMessageDiv.textContent="Err text processing."; return []; }
+        }
+        const oX = (canvas.width-tempCvs.width)/2; 
+        const oY = (canvas.height-tempCvs.height)/2 + tempCvs.height/2 - fS * (textToDraw === currentSettings.E55TextToShow ? 0.10 : 0.15) ; // Adjusted Y centering
+        return pts.map(p => ({ x:p.x+oX, y:p.y+oY, color:p.color }));
+    }
+
+    function assignTargetPoints(newPoints, newModeTarget) {
+        currentTargetPoints = newPoints;
+        if (currentTargetPoints.length === 0) { if(animationFrameId)cancelAnimationFrame(animationFrameId); animationFrameId=null;frameCount=0;init(true);animateWithMouse();return; }
+        const numPReq = currentSettings.particleCount*10; if(particlesArray.length !== numPReq){init(false);}
+        for(let i=currentTargetPoints.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[currentTargetPoints[i],currentTargetPoints[j]]=[currentTargetPoints[j],currentTargetPoints[i]];}
+        particlesArray.forEach((p,idx) => {
+            if(idx < currentTargetPoints.length){const t = currentTargetPoints[idx];p.targetX=t.x;p.targetY=t.y;p.assignTargetColor(t.color);}
+            else{p.targetX = -1000;p.targetY = -1000;p.assignTargetColor(null);} p.isAtTarget = false;
+        });
+        animationMode = newModeTarget;
+    }
+    
+    function animateWithMouse() {
+        if(frameCount===0 && animationMode==='cloud')console.log("Animate: First cloud frame.");frameCount++;
+        if(!ctx){if(animationFrameId)cancelAnimationFrame(animationFrameId);animationFrameId=null;return;}
+        ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle=currentSettings.backgroundColor; ctx.fillRect(0,0,canvas.width,canvas.height);
+        if(animationMode==='cloud')applyMouseForce();
+        let allAtTarget = true;
+        if(particlesArray.length>0){
+            for(let i=0;i<particlesArray.length;i++){particlesArray[i].update();particlesArray[i].draw();
+                if((animationMode==='formingText' || animationMode === 'formingE55') && !particlesArray[i].isAtTarget && particlesArray[i].targetX > -500){allAtTarget=false;}}}
+        if(animationMode==='formingText' && allAtTarget && currentTargetPoints.length>0){animationMode='textDisplayed';}
+        else if(animationMode==='formingE55' && allAtTarget && currentTargetPoints.length > 0) { animationMode = 'E55Displayed';}
+        if(currentSettings.connectionLines==='on')connectParticles();
+        animationFrameId=requestAnimationFrame(animateWithMouse);
+    }
+    
+    function distToSegmentSquared(p,v,w){const l2=(v.x-w.x)**2+(v.y-w.y)**2;if(l2===0)return(p.x-v.x)**2+(p.y-v.y)**2;let t=((p.x-v.x)*(w.x-v.x)+(p.y-v.y)*(w.y-v.y))/l2;t=Math.max(0,Math.min(1,t));return(p.x-(v.x+t*(w.x-v.x)))**2+(p.y-(v.y+t*(w.y-v.y)))**2;}
+    function distToSegment(p,v,w){return Math.sqrt(distToSegmentSquared(p,v,w));}
+    
+    function connectParticles() {
+        if (!ctx) return;
+        for (let a = 0; a < particlesArray.length; a++) {
+            if (particlesArray[a].targetX === -1000 && animationMode !== 'cloud') continue;
+            for (let b = a + 1; b < particlesArray.length; b++) {
+                if (!particlesArray[a] || !particlesArray[b] || (particlesArray[b].targetX === -1000 && animationMode !== 'cloud')) continue;
+                const dx = particlesArray[a].x - particlesArray[b].x; const dy = particlesArray[a].y - particlesArray[b].y; const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist > 0 && dist < currentSettings.maxDistance) {
+                    const op = 1 - (dist / currentSettings.maxDistance); let r,g,bv,gr,gg,gb;
+                    let lnHex = currentSettings.lineColor, glHex = currentSettings.lineColor; 
+                    let glBlur = currentSettings.defaultGlowBlur, glOp = op * currentSettings.glowOpacityFactor;
+
+                    if (animationMode.includes('Text') || animationMode.includes('E55')) { // Common style for text and E55
+                        lnHex = particlesArray[a].color || particleColorInput.value; 
+                        glHex = currentSettings.shapeGlowColor; 
+                        glBlur = currentSettings.shapeGlowBlur; 
+                        glOp = currentSettings.shapeGlowOpacity;
+                    } else { // Cloud mode
+                        if (mouse.x !== undefined && mouse.y !== undefined) { const dtl = distToSegment({x:mouse.x,y:mouse.y},particlesArray[a],particlesArray[b]); if(dtl < currentSettings.glowInteractionRadius){glBlur = currentSettings.hoverGlowBlur; glOp = op;}}
+                    }
+                    try{r=parseInt(lnHex.slice(1,3),16);g=parseInt(lnHex.slice(3,5),16);bv=parseInt(lnHex.slice(5,7),16);if(isNaN(r+g+bv))throw "e";}catch(e){r=g=bv=255;}
+                    try{gr=parseInt(glHex.slice(1,3),16);gg=parseInt(glHex.slice(3,5),16);gb=parseInt(glHex.slice(5,7),16);if(isNaN(gr+gg+gb))throw "e";}catch(e){gr=r;gg=g;gb=bv;}
+                    
+                    ctx.shadowBlur = glBlur; ctx.shadowColor = `rgba(${gr},${gg},${gb},${glOp})`;
+                    ctx.strokeStyle = `rgba(${r},${g},${bv},${op})`; ctx.lineWidth = 0.75;
+                    ctx.beginPath(); ctx.moveTo(particlesArray[a].x,particlesArray[a].y); ctx.lineTo(particlesArray[b].x,particlesArray[b].y); ctx.stroke();
+                    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+                }
+            }
+        }
+    }
+
+    function updateSettingsAndRestart(isResetOrCloud = false) {
+        currentSettings.backgroundColor = backgroundColorInput.value; document.body.style.backgroundColor = currentSettings.backgroundColor;
+        currentSettings.lineColor = lineColorInput.value; currentSettings.connectionLines = connectionLinesInput.value;
+        currentSettings.maxDistance = parseInt(maxDistanceInput.value); currentSettings.particleColor = particleColorInput.value; 
+        particlesArray.forEach(p => { p.defaultColor = currentSettings.particleColor; if (!p.targetColor) p.color = p.defaultColor; });
+        if (isResetOrCloud || animationMode === 'cloud') {
+            currentSettings.particleShape = particleShapeInput.value; 
+            currentSettings.particleCount = parseInt(particleCountInput.value);
+            currentSettings.particleSize = parseFloat(particleSizeInput.value); currentSettings.particleSpeed = parseFloat(particleSpeedInput.value);
+            if(isNaN(currentSettings.particleSpeed) || currentSettings.particleSpeed <=0) { currentSettings.particleSpeed = 0.1; particleSpeedInput.value = currentSettings.particleSpeed; }
+            if (animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null; frameCount = 0;
+            init(true); animateWithMouse();
+        }
+    }
+    
+    if (allControlsFound) {
+        particleColorInput.value = defaultSettings.particleColor; backgroundColorInput.value = defaultSettings.backgroundColor;
+        document.body.style.backgroundColor = defaultSettings.backgroundColor; particleShapeInput.value = defaultSettings.particleShape;
+        particleCountInput.value = defaultSettings.particleCount; particleSizeInput.value = defaultSettings.particleSize;
+        particleSpeedInput.value = defaultSettings.particleSpeed; connectionLinesInput.value = defaultSettings.connectionLines;
+        lineColorInput.value = defaultSettings.lineColor; maxDistanceInput.value = defaultSettings.maxDistance;
+        
+        particleColorInput.addEventListener('input', () => updateSettingsAndRestart());
+        backgroundColorInput.addEventListener('input', () => updateSettingsAndRestart());
+        particleShapeInput.addEventListener('change', () => updateSettingsAndRestart(true));
+        particleCountInput.addEventListener('input', () => updateSettingsAndRestart(true));
+        particleSizeInput.addEventListener('input', () => updateSettingsAndRestart(true));
+        particleSpeedInput.addEventListener('input', () => updateSettingsAndRestart(true));
+        connectionLinesInput.addEventListener('change', () => updateSettingsAndRestart());
+        lineColorInput.addEventListener('input', () => updateSettingsAndRestart());
+        maxDistanceInput.addEventListener('input', () => updateSettingsAndRestart());
+        resetButton.addEventListener('click', () => { updateSettingsAndRestart(true); }); 
+        formTextButton.addEventListener('click', () => {
+             if (animationMode === 'textDisplayed' || animationMode === 'formingText') { updateSettingsAndRestart(true); }
+             else { assignTargetPoints(processTextToPoints(currentSettings.textToShow, particleColorInput.value), 'formingText'); }
+        });
+    }
+
+    let mouse = { x: undefined, y: undefined, radius: 100 };
+    function updateMouseCoords(clientX, clientY) { const r = canvas.getBoundingClientRect(); mouse.x = clientX - r.left; mouse.y = clientY - r.top; };
+    canvas.addEventListener('mousemove', (e) => { updateMouseCoords(e.clientX, e.clientY); if (!canvas.matches(':active')) canvas.style.cursor = 'crosshair'; });
+    canvas.addEventListener('mouseleave', () => { mouse.x = undefined; mouse.y = undefined; canvas.style.cursor = 'grab'; });
+    canvas.addEventListener('mousedown', () => { canvas.style.cursor = 'grabbing'; });
+    canvas.addEventListener('mouseup', (e) => { const r = canvas.getBoundingClientRect(); const iO = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; canvas.style.cursor = iO ? 'crosshair' : 'grab'; });
+    
+    let lastTapTime = 0; let lastClickTime = 0;
+    const doubleTapTimeout = 300; // ms
+
+    canvas.addEventListener('touchend', function(event) {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTapTime;
+        if (tapLength < doubleTapTimeout && tapLength > 0) {
+            event.preventDefault(); // Prevent zoom on double tap
+            console.log("Double tap on canvas detected for E55.");
+            if (animationMode === 'cloud' || animationMode === 'textDisplayed' || animationMode === 'E55Displayed') {
+                const capturedColor = particleColorInput.value;
+                assignTargetPoints(processTextToPoints(currentSettings.E55TextToShow, capturedColor), 'formingE55');
+            } else if (animationMode === 'formingE55') { // If forming E55, double tap reverts to cloud
+                updateSettingsAndRestart(true);
+            }
+            lastTapTime = 0; 
+        } else {
+            lastTapTime = currentTime;
+        }
+    });
+
+    canvas.addEventListener('click', function(event) {
+        const currentTime = new Date().getTime();
+        const clickLength = currentTime - lastClickTime;
+        if (clickLength < doubleTapTimeout && clickLength > 0) {
+            console.log("Double click on canvas detected for E55.");
+            if (animationMode === 'cloud' || animationMode === 'textDisplayed' || animationMode === 'E55Displayed') {
+                const capturedColor = particleColorInput.value;
+                assignTargetPoints(processTextToPoints(currentSettings.E55TextToShow, capturedColor), 'formingE55');
+            } else if (animationMode === 'formingE55') {
+                updateSettingsAndRestart(true);
+            }
+            lastClickTime = 0;
+        } else {
+            lastClickTime = currentTime;
+        }
+    });
+
+    function handleTouchStart(e) { if (e.touches.length > 0) { updateMouseCoords(e.touches[0].clientX, e.touches[0].clientY); canvas.style.cursor = 'grabbing'; } }
+    function handleTouchMove(e) { e.preventDefault(); if (e.touches.length > 0) updateMouseCoords(e.touches[0].clientX, e.touches[0].clientY); }
+    function handleTouchEnd(e) { 
+        // This is now primarily handled by the 'touchend' for double tap.
+        // We still need to reset cursor if it was the end of a drag.
+        if (e.touches.length === 0 && e.changedTouches.length > 0) {
+            const rect = canvas.getBoundingClientRect(); const lT = e.changedTouches[0]; 
+            const iO = lT.clientX >= rect.left && lT.clientX <= rect.right && lT.clientY >= rect.top && lT.clientY <= rect.bottom; 
+            if (!iO) { mouse.x = undefined; mouse.y = undefined; canvas.style.cursor = 'grab'; } 
+            else { canvas.style.cursor = 'crosshair'; } 
+        }
+    }
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false }); 
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    // Note: 'touchend' for double tap is added separately. We might need to combine logic or ensure no conflicts.
+    // The separate 'touchend' for double tap should be fine as it uses its own `lastTapTime`.
+
+    function applyMouseForce() {
+        if (animationMode !== 'cloud' || mouse.x === undefined || mouse.y === undefined) return;
+         for (let i = 0; i < particlesArray.length; i++) {
+            if (!particlesArray[i]) continue; let p = particlesArray[i];
+            let dx = p.x - mouse.x; let dy = p.y - mouse.y; let d = Math.sqrt(dx*dx + dy*dy); if (d === 0) d = 0.1;
+            let fx = dx / d; let fy = dy / d; let f = (mouse.radius - d) / mouse.radius;
+            if (d < mouse.radius) {
+                const ps = 3; p.x += fx*f*ps; p.y += fy*f*ps;
+                if (p.x + p.size > canvas.width) p.x = canvas.width - p.size; if (p.x - p.size < 0) p.x = p.size;
+                if (p.y + p.size > canvas.height) p.y = canvas.height - p.size; if (p.y - p.size < 0) p.y = p.size;
+            }
+        }
+    }
+
+    console.log("Starting final initial setup phase...");
+    try {
+        if(allControlsFound) { console.log("UI controls should be initialized."); } else { console.warn("Some UI controls missing."); }
+        resizeCanvas(); 
+        if (animationFrameId) {cancelAnimationFrame(animationFrameId); animationFrameId = null;}
+        frameCount = 0; console.log("Calling animateWithMouse() for first time.");
+        animateWithMouse(); console.log("Initial animateWithMouse() called.");
+    } catch (e) { const msg = "CRITICAL ERROR in final setup: " + e.message; if (errorMessageDiv) errorMessageDiv.textContent = msg; console.error(msg, e); }
+    if (!canvas || !ctx ) { if(errorMessageDiv && !errorMessageDiv.textContent) errorMessageDiv.textContent = "FATAL: Canvas/Ctx init failed.";}
+
+</script>
+</body>
+</html>
